@@ -4,6 +4,8 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Avoid native binary issues with @libsql on Netlify
+  external_node_modules = []
 
 [[redirects]]
   from = "/api/*"

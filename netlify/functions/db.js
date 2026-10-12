@@ -1,5 +1,6 @@
 // Shared database helper for Netlify Functions
-const { createClient } = require('@libsql/client');
+// Use the HTTP client so no native binaries are required on Netlify
+const { createClient } = require('@libsql/client/http');
 
 function getDb() {
   const url = process.env.TURSO_DATABASE_URL;

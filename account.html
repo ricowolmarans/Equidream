@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account – Equidream</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">Equi<span>dream</span></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html">Cart <span id="cart-count"></span></a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <div id="account-content">
+        <div class="card" style="text-align:center;padding:3rem;">Loading...</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Equidream Horse Supplements. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/js/cart.js"></script>
+  <script>
+    const API = '/api';
+
+    function getToken() {
+      return localStorage.getItem('customer_token');
+    }
+
+    function clearToken() {
+      localStorage.removeItem('customer_token');
+    }
+
+    async function init() {
+      updateCartCount();
+      const token = getToken();
+
+      if (!token) {
+        renderAuth();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          clearToken();
+          renderAuth();
+          return;
+        }
+        const user = await res.json();
+        renderAccount(user);
+      } catch {
+        clearToken();
+        renderAuth();
+      }
+    }
+
+    function renderAuth() {
+      document.getElementById('account-content').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:900px;margin:0 auto;">
+          <div class="card">
+            <h2 style="color:var(--primary);margin-bottom:1rem;">Login</h2>
+            <div class="error" id="login-error" style="display:none;"></div>
+            <form id="login-form">
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="login-email" required>
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" required>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Login</button>
+            </form>
+          </div>
+          <div class="card">
+            <h2 style="color:var(--primary);margin-bottom:1rem;">Create Account</h2>
+            <div class="error" id="register-error" style="display:none;"></div>
+            <form id="register-form">
+              <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="reg-name" required>
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="reg-email" required>
+              </div>
+              <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" id="reg-phone">
+              </div>
+              <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="reg-password" required minlength="8">
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Register</button>
+            </form>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('login-form').addEventListener('submit', handleLogin);
+      document.getElementById('register-form').addEventListener('submit', handleRegister);
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errorEl = document.getElementById('login-error');
+      errorEl.style.display = 'none';
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await fetch(`${API}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Login failed';
+          errorEl.style.display = 'block';
+          return;
+        }
+        localStorage.setItem('customer_token', data.token);
+        renderAccount(data.user);
+      } catch {
+        errorEl.textContent = 'Network error';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const errorEl = document.getElementById('register-error');
+      errorEl.style.display = 'none';
+
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone').value.trim();
+      const password = document.getElementById('reg-password').value;
+
+      try {
+        const res = await fetch(`${API}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, phone, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Registration failed';
+          errorEl.style.display = 'block';
+          return;
+        }
+        localStorage.setItem('customer_token', data.token);
+        renderAccount(data.user);
+      } catch {
+        errorEl.textContent = 'Network error';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    async function renderAccount(user) {
+      // Load orders
+      let ordersHtml = '<p style="color:#6b6b6b;">No orders yet.</p>';
+      try {
+        const res = await fetch(`${API}/my-orders`, {
+          headers: { Authorization: `Bearer ${getToken()}` }
+        });
+        if (res.ok) {
+          const orders = await res.json();
+          if (orders.length > 0) {
+            ordersHtml = `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Reference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${orders.map(o => `
+                    <tr>
+                      <td>#${o.id}</td>
+                      <td>${new Date(o.created_at).toLocaleDateString()}</td>
+                      <td>R${o.total.toFixed(2)}</td>
+                      <td><strong>${o.status}</strong></td>
+                      <td>${o.payment_reference || '—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `;
+          }
+        }
+      } catch {}
+
+      document.getElementById('account-content').innerHTML = `
+        <div class="admin-header">
+          <h1>My Account</h1>
+          <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </div>
+        <div class="card mb-2">
+          <h3 style="margin-bottom:0.8rem;">Profile</h3>
+          <p><strong>Name:</strong> ${user.name || '—'}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Phone:</strong> ${user.phone || '—'}</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:1rem;">Order History</h3>
+          ${ordersHtml}
+        </div>
+      `;
+    }
+
+    function logout() {
+      clearToken();
+      init();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

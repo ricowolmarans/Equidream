@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart – Equidream</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .cart-table img {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    .cart-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+    .empty-cart {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">Equi<span>dream</span></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html">Cart <span id="cart-count"></span></a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <h1 class="section-title">Your Cart</h1>
+      <div id="cart-content"></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Equidream Horse Supplements. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/js/cart.js"></script>
+  <script>
+    function renderCart() {
+      const items = Cart.get();
+      const content = document.getElementById('cart-content');
+
+      if (items.length === 0) {
+        content.innerHTML = `
+          <div class="card empty-cart">
+            <h2>Your cart is empty</h2>
+            <p style="color:#6b6b6b;margin:1rem 0;">Browse our horse supplements and add something.</p>
+            <a href="/products.html" class="btn btn-primary">Shop Products</a>
+          </div>`;
+        updateCartCount();
+        return;
+      }
+
+      let rows = items.map(item => `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <img src="${item.image_url || 'https://via.placeholder.com/70'}" alt="">
+              <div>
+                <strong>${item.name}</strong>
+                ${item.variant_name ? `<div style="font-size:0.85rem;color:#6b6b6b;">${item.variant_name}</div>` : ''}
+              </div>
+            </div>
+          </td>
+          <td>R${item.price.toFixed(2)}</td>
+          <td>
+            <input type="number" min="1" max="99" value="${item.quantity}" 
+                   style="width:70px;padding:0.4rem;border:1px solid var(--border);border-radius:6px;"
+                   onchange="updateItem(${item.product_id}, ${item.variant_id || 'null'}, this.value)">
+          </td>
+          <td>R${(item.price * item.quantity).toFixed(2)}</td>
+          <td>
+            <button class="btn btn-outline" style="padding:0.4rem 0.8rem;font-size:0.85rem;"
+                    onclick="removeItem(${item.product_id}, ${item.variant_id || 'null'})">Remove</button>
+          </td>
+        </tr>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Qty</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1.5rem;flex-wrap:wrap;gap:1rem;">
+          <a href="/products.html" class="btn btn-outline">Continue Shopping</a>
+          <div style="text-align:right;">
+            <div style="font-size:1.3rem;font-weight:700;color:var(--primary);">
+              Total: R${Cart.total().toFixed(2)}
+            </div>
+            <a href="/checkout.html" class="btn btn-primary mt-2" style="margin-top:0.8rem;">Proceed to Checkout</a>
+          </div>
+        </div>
+      `;
+      updateCartCount();
+    }
+
+    function updateItem(product_id, variant_id, qty) {
+      Cart.updateQty(product_id, variant_id, parseInt(qty) || 1);
+      renderCart();
+    }
+
+    function removeItem(product_id, variant_id) {
+      Cart.remove(product_id, variant_id);
+      renderCart();
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCart);
+  </script>
+</body>
+</html>

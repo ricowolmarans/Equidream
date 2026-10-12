@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products – Equidream</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">Equi<span>dream</span></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html">Cart <span id="cart-count"></span></a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <h1 class="section-title">All Products</h1>
+      <div class="products-grid" id="products-grid">
+        <div class="card" style="grid-column:1/-1;text-align:center;padding:3rem;">
+          Loading products...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Equidream Horse Supplements. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/js/cart.js"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const grid = document.getElementById('products-grid');
+      const products = await fetchProducts();
+      if (products.length === 0) {
+        grid.innerHTML = `
+          <div class="card" style="grid-column:1/-1;text-align:center;padding:3rem;">
+            <h3>No products available yet</h3>
+            <p style="color:#6b6b6b;margin-top:0.5rem;">Check back soon or contact the store owner.</p>
+          </div>`;
+        return;
+      }
+      grid.innerHTML = products.map(renderProductCard).join('');
+      updateCartCount();
+    });
+  </script>
+</body>
+</html>

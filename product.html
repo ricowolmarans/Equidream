@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product – Equidream</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .product-detail {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: start;
+    }
+    .product-detail img {
+      width: 100%;
+      border-radius: var(--radius);
+      background: #eee;
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
+    .variant-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1rem 0;
+    }
+    .variant-btn {
+      padding: 0.6rem 1.1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .variant-btn:hover, .variant-btn.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+    .variant-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .price-display {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 1rem 0;
+    }
+    .qty-control {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin: 1.2rem 0;
+    }
+    .qty-control button {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .qty-control input {
+      width: 60px;
+      text-align: center;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    @media (max-width: 700px) {
+      .product-detail { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">Equi<span>dream</span></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html">Cart <span id="cart-count"></span></a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <div id="product-content">
+        <div class="card" style="text-align:center;padding:3rem;">Loading product...</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Equidream Horse Supplements. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/js/cart.js"></script>
+  <script>
+    const API = '/api';
+    let currentProduct = null;
+    let selectedVariant = null;
+    let qty = 1;
+
+    async function loadProduct() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (!id) {
+        document.getElementById('product-content').innerHTML = '<div class="card">Product not found</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/product?id=${id}`);
+        if (!res.ok) throw new Error('Not found');
+        currentProduct = await res.json();
+        renderProduct();
+      } catch (err) {
+        document.getElementById('product-content').innerHTML = `
+          <div class="card" style="text-align:center;padding:3rem;">
+            <h2>Product not found</h2>
+            <a href="/products.html" class="btn btn-primary mt-2">Back to Products</a>
+          </div>`;
+      }
+    }
+
+    function renderProduct() {
+      const p = currentProduct;
+      const variants = p.variants || [];
+      selectedVariant = variants.find(v => v.stock > 0) || variants[0] || null;
+
+      document.getElementById('product-content').innerHTML = `
+        <div class="product-detail">
+          <div>
+            <img src="${p.image_url || 'https://via.placeholder.com/500x500?text=Horse+Supplement'}" 
+                 alt="${p.name}"
+                 onerror="this.src='https://via.placeholder.com/500x500?text=No+Image'">
+          </div>
+          <div>
+            <h1 style="color:var(--primary);margin-bottom:0.5rem;">${p.name}</h1>
+            <p style="color:#6b6b6b;margin-bottom:1rem;">${p.category || ''}</p>
+            <div class="price-display" id="price-display">
+              ${selectedVariant ? 'R' + selectedVariant.price.toFixed(2) : 'R' + (p.base_price || 0).toFixed(2)}
+            </div>
+            <p style="margin-bottom:1.5rem;line-height:1.7;">${p.description || 'No description available.'}</p>
+
+            ${variants.length > 0 ? `
+              <label style="font-weight:600;">Select Option:</label>
+              <div class="variant-options" id="variant-options">
+                ${variants.map(v => `
+                  <button class="variant-btn ${selectedVariant && selectedVariant.id === v.id ? 'active' : ''}"
+                          data-id="${v.id}"
+                          ${v.stock <= 0 ? 'disabled' : ''}
+                          onclick="selectVariant(${v.id})">
+                    ${v.name} ${v.stock <= 0 ? '(Out of stock)' : ''}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            <div class="qty-control">
+              <button onclick="changeQty(-1)">−</button>
+              <input type="number" id="qty-input" value="1" min="1" max="99" onchange="qty = parseInt(this.value) || 1">
+              <button onclick="changeQty(1)">+</button>
+            </div>
+
+            <button class="btn btn-primary btn-block" style="padding:1rem;font-size:1.05rem;" onclick="addToCart()">
+              Add to Cart
+            </button>
+            <p id="add-msg" style="margin-top:1rem;color:var(--success);display:none;">Added to cart!</p>
+          </div>
+        </div>
+      `;
+      updateCartCount();
+    }
+
+    function selectVariant(id) {
+      selectedVariant = currentProduct.variants.find(v => v.id === id);
+      document.querySelectorAll('.variant-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.id) === id);
+      });
+      document.getElementById('price-display').textContent = 'R' + selectedVariant.price.toFixed(2);
+    }
+
+    function changeQty(delta) {
+      qty = Math.max(1, Math.min(99, qty + delta));
+      document.getElementById('qty-input').value = qty;
+    }
+
+    function addToCart() {
+      if (!selectedVariant && currentProduct.variants?.length > 0) {
+        alert('Please select an option');
+        return;
+      }
+
+      const item = {
+        product_id: currentProduct.id,
+        variant_id: selectedVariant ? selectedVariant.id : null,
+        name: currentProduct.name,
+        variant_name: selectedVariant ? selectedVariant.name : null,
+        price: selectedVariant ? selectedVariant.price : (currentProduct.base_price || 0),
+        image_url: currentProduct.image_url,
+        quantity: qty
+      };
+
+      Cart.add(item);
+      updateCartCount();
+
+      const msg = document.getElementById('add-msg');
+      msg.style.display = 'block';
+      setTimeout(() => msg.style.display = 'none', 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadProduct);
+  </script>
+</body>
+</html>

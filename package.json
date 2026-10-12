@@ -1,0 +1,14 @@
+{
+  "name": "horse-supplements-store",
+  "version": "1.0.0",
+  "description": "Horse supplements e-commerce store - static HTML + Netlify Functions + Turso",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cloudinary": "^2.5.1"
+  }
+}

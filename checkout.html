@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout – Equidream</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .checkout-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 2rem;
+    }
+    @media (max-width: 800px) {
+      .checkout-grid { grid-template-columns: 1fr; }
+    }
+    .order-summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .eft-box {
+      background: #f0f7f2;
+      border: 2px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .eft-box h3 { color: var(--primary); margin-bottom: 0.8rem; }
+    .eft-box .ref {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: white;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      display: inline-block;
+      margin: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">Equi<span>dream</span></a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/products.html">Products</a>
+        <a href="/cart.html">Cart <span id="cart-count"></span></a>
+        <a href="/account.html">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <h1 class="section-title">Checkout</h1>
+      <div id="checkout-content">
+        <div class="card" style="text-align:center;padding:3rem;">Loading...</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2026 Equidream Horse Supplements. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="/js/cart.js"></script>
+  <script>
+    const API = '/api';
+    let shippingRate = 150; // default, will be fetched
+    let currentUser = null;
+
+    function getToken() {
+      return localStorage.getItem('customer_token');
+    }
+
+    async function init() {
+      updateCartCount();
+      const items = Cart.get();
+
+      if (items.length === 0) {
+        document.getElementById('checkout-content').innerHTML = `
+          <div class="card" style="text-align:center;padding:3rem;">
+            <h2>Your cart is empty</h2>
+            <a href="/products.html" class="btn btn-primary mt-2">Shop Products</a>
+          </div>`;
+        return;
+      }
+
+      const token = getToken();
+      if (!token) {
+        document.getElementById('checkout-content').innerHTML = `
+          <div class="card" style="text-align:center;padding:3rem;">
+            <h2>Please log in to checkout</h2>
+            <p style="color:#6b6b6b;margin:1rem 0;">Accounts are required to place an order.</p>
+            <a href="/account.html" class="btn btn-primary">Login / Register</a>
+          </div>`;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Not logged in');
+        currentUser = await res.json();
+      } catch {
+        localStorage.removeItem('customer_token');
+        location.href = '/account.html';
+        return;
+      }
+
+      // Get shipping rate
+      try {
+        const sRes = await fetch(`${API}/settings`);
+        if (sRes.ok) {
+          const settings = await sRes.json();
+          shippingRate = parseFloat(settings.shipping_flat_rate) || 150;
+        }
+      } catch {}
+
+      renderCheckout(items);
+    }
+
+    function renderCheckout(items) {
+      const subtotal = Cart.total();
+      const total = subtotal + shippingRate;
+
+      const itemsHtml = items.map(i => `
+        <div class="order-summary-item">
+          <div>
+            ${i.name}${i.variant_name ? ' – ' + i.variant_name : ''}
+            <span style="color:#6b6b6b;"> × ${i.quantity}</span>
+          </div>
+          <div>R${(i.price * i.quantity).toFixed(2)}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('checkout-content').innerHTML = `
+        <div class="checkout-grid">
+          <div class="card">
+            <h2 style="margin-bottom:1.2rem;color:var(--primary);">Shipping Details</h2>
+            <form id="checkout-form">
+              <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="ship-name" value="${currentUser.name || ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" id="ship-phone" value="${currentUser.phone || ''}" required>
+              </div>
+              <div class="form-group">
+                <label>Shipping Address</label>
+                <textarea id="ship-address" rows="3" required placeholder="Street, suburb, city, province, postal code">${currentUser.address || ''}</textarea>
+              </div>
+              <div class="form-group">
+                <label>Order Notes (optional)</label>
+                <textarea id="ship-notes" rows="2" placeholder="Any special instructions..."></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" style="padding:1rem;font-size:1.05rem;">
+                Place Order (Pay via EFT)
+              </button>
+            </form>
+            <div class="error" id="checkout-error" style="display:none;margin-top:1rem;"></div>
+          </div>
+
+          <div class="card">
+            <h2 style="margin-bottom:1.2rem;color:var(--primary);">Order Summary</h2>
+            ${itemsHtml}
+            <div class="order-summary-item" style="border:none;padding-top:1rem;">
+              <div>Subtotal</div>
+              <div>R${subtotal.toFixed(2)}</div>
+            </div>
+            <div class="order-summary-item" style="border:none;">
+              <div>Shipping (flat rate)</div>
+              <div>R${shippingRate.toFixed(2)}</div>
+            </div>
+            <div class="order-summary-item" style="border:none;font-size:1.2rem;font-weight:700;color:var(--primary);">
+              <div>Total</div>
+              <div>R${total.toFixed(2)}</div>
+            </div>
+            <p style="margin-top:1.5rem;font-size:0.9rem;color:#6b6b6b;">
+              You will receive bank details and a unique payment reference after placing the order.
+            </p>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('checkout-form').addEventListener('submit', placeOrder);
+    }
+
+    async function placeOrder(e) {
+      e.preventDefault();
+      const errorEl = document.getElementById('checkout-error');
+      errorEl.style.display = 'none';
+
+      const name = document.getElementById('ship-name').value.trim();
+      const phone = document.getElementById('ship-phone').value.trim();
+      const address = document.getElementById('ship-address').value.trim();
+      const notes = document.getElementById('ship-notes').value.trim();
+
+      const items = Cart.get().map(i => ({
+        variant_id: i.variant_id,
+        product_id: i.product_id,
+        quantity: i.quantity,
+        price: i.price,
+        name: i.name,
+        variant_name: i.variant_name
+      }));
+
+      try {
+        const res = await fetch(`${API}/create-order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({
+            items,
+            shipping_address: `${name}\n${phone}\n${address}`,
+            notes,
+            shipping_cost: shippingRate
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Could not place order';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Clear cart and show success + EFT details
+        Cart.clear();
+        updateCartCount();
+
+        document.getElementById('checkout-content').innerHTML = `
+          <div class="card" style="max-width:600px;margin:0 auto;">
+            <h2 style="color:var(--primary);text-align:center;">Order Placed Successfully!</h2>
+            <p style="text-align:center;margin:1rem 0;">Order #${data.order_id}</p>
+
+            <div class="eft-box">
+              <h3>Pay via EFT</h3>
+              <p>Please make a payment using the details below:</p>
+              <p><strong>Bank:</strong> ${data.bank_name || 'Your Bank Name'}</p>
+              <p><strong>Account Name:</strong> ${data.account_name || 'Equidream Supplements'}</p>
+              <p><strong>Account Number:</strong> ${data.account_number || '1234567890'}</p>
+              <p><strong>Branch Code:</strong> ${data.branch_code || '000000'}</p>
+              <p style="margin-top:1rem;"><strong>Amount:</strong> R${data.total.toFixed(2)}</p>
+              <p><strong>Payment Reference (important):</strong></p>
+              <div class="ref">${data.payment_reference}</div>
+              <p style="margin-top:1rem;font-size:0.9rem;">
+                Use the reference above so we can match your payment. Once we receive the EFT we will update your order status to <strong>Paid</strong>.
+              </p>
+            </div>
+
+            <div style="text-align:center;margin-top:2rem;">
+              <a href="/account.html" class="btn btn-primary">View My Orders</a>
+              <a href="/products.html" class="btn btn-outline" style="margin-left:0.8rem;">Continue Shopping</a>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.display = 'block';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
